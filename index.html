@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lienzo Histórico: Línea de Tiempo de Sistemas Operativos</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts & Lucide Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .code-font {
+      font-family: 'Fira Code', monospace;
+    }
+    /* Estilo del fondo infinito de tipo cuadrícula */
+    .canvas-grid {
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    }
+    /* Animación de pulso para nodos activos o importantes */
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.5; }
+      100% { transform: scale(1.2); opacity: 0; }
+    }
+    .pulse-ring {
+      animation: pulse-ring 2s cubic-bezier(0.215, 0.610, 0.355, 1) infinite;
+    }
+    /* Ocultar barra de scroll pero mantener funcionalidad */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 overflow-hidden h-screen w-screen flex flex-col select-none">
+
+  <!-- BARRA DE CONTROL SUPERIOR -->
+  <header class="h-16 border-b border-zinc-800 bg-zinc-900/85 backdrop-blur-md px-6 flex items-center justify-between z-30 shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="p-2 bg-indigo-600 rounded-lg text-white shadow-lg shadow-indigo-500/20">
+        <i data-lucide="cpu" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h1 class="text-sm md:text-base font-bold tracking-tight text-white flex items-center gap-2">
+          Lienzo de Sistemas Operativos
+          <span class="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.5 (AI-Era)</span>
+        </h1>
+        <p class="text-[11px] text-zinc-400 hidden sm:block">Línea de tiempo interactiva desde los orígenes hasta la computación moderna</p>
+      </div>
+    </div>
+
+    <!-- Buscador y Filtros Rápidos -->
+    <div class="flex items-center gap-2 sm:gap-4">
+      <div class="relative hidden md:block">
+        <i data-lucide="search" class="w-4 h-4 text-zinc-400 absolute left-3 top-2.5"></i>
+        <input 
+          type="text" 
+          id="searchBox" 
+          placeholder="Buscar sistema operativo..." 
+          class="bg-zinc-800/80 border border-zinc-700/60 rounded-lg pl-9 pr-4 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-56 transition-all"
+          oninput="handleSearch(this.value)"
+        >
+      </div>
+      <div class="flex bg-zinc-800/60 p-1 rounded-lg border border-zinc-700/40 text-xs">
+        <button onclick="filterType('all')" id="btn-all" class="px-2.5 py-1 rounded-md bg-indigo-600 text-white font-medium transition-all">Todos</button>
+        <button onclick="filterType('desktop')" id="btn-desktop" class="px-2.5 py-1 rounded-md text-zinc-400 hover:text-white transition-all">Escritorio</button>
+        <button onclick="filterType('mobile')" id="btn-mobile" class="px-2.5 py-1 rounded-md text-zinc-400 hover:text-white transition-all">Móvil</button>
+        <button onclick="filterType('server')" id="btn-server" class="px-2.5 py-1 rounded-md text-zinc-400 hover:text-white transition-all">Servidores</button>
+      </div>
+      <button onclick="openTrivia()" class="p-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-lg text-xs flex items-center gap-1.5 transition-all">
+        <i data-lucide="award" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">Desafío</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ÁREA DEL LIENZO PRINCIPAL (Interactuable) -->
+  <main class="flex-1 relative overflow-hidden bg-zinc-950 cursor-grab active:cursor-grabbing" id="canvasContainer">
+    
+    <!-- Lienzo de Dibujo / Rejilla -->
+    <div id="canvas" class="absolute inset-0 canvas-grid origin-top-left transition-transform duration-75 ease-out select-none" style="width: 5500px; height: 1000px;">
+      
+      <!-- Capa de Conexiones SVG -->
+      <svg id="svgConnections" class="absolute inset-0 pointer-events-none w-full h-full z-0">
+        <!-- Las líneas de árbol de descendencia de los OS se autogenerarán con JavaScript -->
+      </svg>
+
+      <!-- Capa de Línea de Años del Fondo -->
+      <div class="absolute bottom-16 left-0 right-0 h-10 border-t border-b border-zinc-800/60 bg-zinc-900/10 flex justify-between px-20 pointer-events-none">
+        <!-- Se rellena con JS -->
+      </div>
+
+      <!-- CAPA DE NODOS (SISTEMAS OPERATIVOS) -->
+      <div id="nodesContainer" class="absolute inset-0 z-10">
+        <!-- Los nodos de cada sistema se renderizan aquí dinámicamente -->
+      </div>
+
+    </div>
+
+    <!-- CONTROLES DE ZOOM / NAVEGACIÓN EN PANTALLA -->
+    <div class="absolute bottom-6 left-6 z-20 flex items-center gap-1.5 bg-zinc-900/90 border border-zinc-800/80 p-1.5 rounded-xl shadow-2xl backdrop-blur-md">
+      <button onclick="adjustZoom(0.1)" class="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-all" title="Zoom In">
+        <i data-lucide="zoom-in" class="w-4 h-4"></i>
+      </button>
+      <button onclick="adjustZoom(-0.1)" class="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-all" title="Zoom Out">
+        <i data-lucide="zoom-out" class="w-4 h-4"></i>
+      </button>
+      <div class="h-4 w-px bg-zinc-800"></div>
+      <button onclick="resetView()" class="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-all" title="Restaurar Vista">
+        <i data-lucide="maximize" class="w-4 h-4"></i>
+      </button>
+      <span id="zoomDisplay" class="text-[10px] font-mono font-bold text-zinc-500 px-2">100%</span>
+    </div>
+
+    <!-- INDICADOR DE ARRASTRE / AYUDA -->
+    <div class="absolute bottom-6 right-6 z-20 hidden md:flex items-center gap-2 bg-zinc-900/60 border border-zinc-800/50 px-3 py-1.5 rounded-full text-[11px] text-zinc-400 pointer-events-none backdrop-blur-sm">
+      <i data-lucide="mouse-pointer" class="w-3.5 h-3.5 text-zinc-500"></i>
+      <span>Arrastra el lienzo para explorar &bull; Usa la rueda del ratón para hacer zoom</span>
+    </div>
+  </main>
+
+  <!-- PANEL LATERAL DE DETALLES DEL SISTEMA SELECCIONADO -->
+  <aside id="sidePanel" class="fixed top-16 bottom-0 right-0 w-full sm:w-[480px] bg-zinc-900 border-l border-zinc-800 shadow-2xl z-40 transform translate-x-full transition-transform duration-300 flex flex-col">
+    <!-- Header del Panel -->
+    <div class="p-6 border-b border-zinc-800 flex items-start justify-between bg-zinc-950/40">
+      <div class="flex items-center gap-3">
+        <div id="panelOsIconContainer" class="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20">
+          <i data-lucide="terminal" id="panelOsIcon" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <span id="panelOsYear" class="text-xs font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full">1991</span>
+          <h2 id="panelOsName" class="text-xl font-bold text-white mt-1">Linux Kernel</h2>
+          <p id="panelOsCompany" class="text-xs text-zinc-400">Linus Torvalds</p>
+        </div>
+      </div>
+      <button onclick="closePanel()" class="p-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-all">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Contenido del Panel -->
+    <div class="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
+      <div>
+        <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Descripción General</h3>
+        <p id="panelOsDesc" class="text-sm text-zinc-300 leading-relaxed">
+          Un núcleo de sistema operativo libre y de código abierto que revolucionó el software.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="p-3 bg-zinc-950/40 border border-zinc-800 rounded-lg">
+          <span class="text-[10px] text-zinc-500 block">Arquitectura</span>
+          <span id="panelOsArch" class="text-xs font-semibold text-zinc-200">Monolítica (C)</span>
+        </div>
+        <div class="p-3 bg-zinc-950/40 border border-zinc-800 rounded-lg">
+          <span class="text-[10px] text-zinc-500 block">Licencia</span>
+          <span id="panelOsLicense" class="text-xs font-semibold text-zinc-200">Código Abierto / GPL</span>
+        </div>
+      </div>
+
+      <!-- Logros / Innovación Clave -->
+      <div class="p-4 bg-indigo-950/20 border border-indigo-900/30 rounded-xl">
+        <h4 class="text-xs font-bold text-indigo-300 flex items-center gap-1.5 mb-2">
+          <i data-lucide="sparkles" class="w-4 h-4 text-indigo-400"></i>
+          Hito Histórico e Impacto
+        </h4>
+        <p id="panelOsImpact" class="text-xs text-zinc-300 leading-relaxed">
+          Democratizó la computación en servidores, dándole origen a la arquitectura de la nube moderna y convirtiéndose en el motor detrás de Android, supercomputadoras y miles de distribuciones modernas.
+        </p>
+      </div>
+
+      <!-- EMULADOR / CONSOLA INTERACTIVA (SIMULADA) -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-wider">Interactuar con el Sistema (Simulación)</h3>
+          <span class="text-[10px] bg-emerald-500/10 text-emerald-400 font-mono px-2 py-0.5 rounded-full flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> en línea
+          </span>
+        </div>
+        
+        <div class="bg-black border border-zinc-800 rounded-xl overflow-hidden shadow-inner flex flex-col h-48">
+          <!-- Terminal Header -->
+          <div class="bg-zinc-950 px-3 py-1.5 border-b border-zinc-900 flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-500/80"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-green-500/80"></span>
+            </div>
+            <span id="terminalTitle" class="text-[10px] font-mono text-zinc-500">bash @ unix-legacy</span>
+          </div>
+          
+          <!-- Terminal Screen -->
+          <div id="terminalScreen" class="flex-1 p-3 overflow-y-auto code-font text-xs text-green-400 space-y-1.5 scroll-smooth no-scrollbar">
+            <!-- Respuestas e inputs simulados -->
+          </div>
+
+          <!-- Terminal Input -->
+          <form id="terminalForm" onsubmit="handleTerminalSubmit(event)" class="bg-zinc-950 border-t border-zinc-900 px-3 py-1.5 flex items-center gap-1">
+            <span id="terminalPrompt" class="code-font text-xs text-indigo-400 font-bold">$</span>
+            <input 
+              type="text" 
+              id="terminalInput" 
+              class="bg-transparent focus:outline-none border-none text-xs text-white code-font flex-1"
+              placeholder="Escribe un comando (ej. 'help', 'dir', 'info')..."
+              autocomplete="off"
+            >
+          </form>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MODAL DE DESAFÍO/TRIVIA DE HISTORIA -->
+  <div id="triviaModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-6 relative overflow-hidden">
+      <div class="absolute -top-12 -right-12 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl"></div>
+      
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-extrabold text-white flex items-center gap-2">
+          <i data-lucide="brain-circuit" class="w-6 h-6 text-amber-400"></i>
+          Trivia de Sistemas Operativos
+        </h3>
+        <button onclick="closeTrivia()" class="p-1 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Pregunta actual -->
+      <div id="triviaQuestionContainer" class="space-y-4">
+        <span id="triviaProgress" class="text-[10px] font-mono font-bold uppercase text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">Pregunta 1 de 3</span>
+        <h4 id="triviaQuestion" class="text-sm font-semibold text-zinc-100 mt-2 leading-relaxed">
+          ¿Cuál de los siguientes sistemas operativos es considerado el ancestro directo de macOS e iOS debido a su arquitectura basada en Mach?
+        </h4>
+        <div id="triviaAnswers" class="grid grid-cols-1 gap-2.5 pt-2">
+          <!-- Botones de respuesta -->
+        </div>
+      </div>
+
+      <!-- Resultado final o feedback -->
+      <div id="triviaFeedback" class="hidden text-center space-y-3 py-4">
+        <div id="triviaFeedbackIcon" class="mx-auto w-12 h-12 bg-green-500/10 text-green-400 border border-green-500/20 rounded-full flex items-center justify-center">
+          <i data-lucide="check-circle" class="w-6 h-6"></i>
+        </div>
+        <h4 id="triviaFeedbackTitle" class="text-base font-bold text-white">¡Excelente respuesta!</h4>
+        <p id="triviaFeedbackText" class="text-xs text-zinc-400 max-w-xs mx-auto">
+          El núcleo BSD y NeXTSTEP son raíces directas sobre las que se construyó Mac OS X a partir de 2001.
+        </p>
+        <button onclick="nextTriviaQuestion()" id="triviaNextBtn" class="mt-4 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-semibold text-white transition-all">
+          Siguiente Pregunta
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTING (LOGICA INTERACTIVA DEL LIENZO) -->
+  <script>
+    // 1. DATA DE LOS SISTEMAS OPERATIVOS (Base de Conocimiento)
+    const osList = [
+      {
+        id: "gmnaa",
+        year: 1956,
+        name: "GM-NAA I/O",
+        type: "server",
+        company: "General Motors & NAA",
+        desc: "Considerado el primer sistema operativo de la historia.",
+        details: "Desarrollado para el procesador central IBM 704. Su propósito principal era ejecutar automáticamente un programa tras terminar otro, minimizando tiempos muertos. Introdujo el procesamiento por lotes básico.",
+        arch: "Procesamiento por lotes",
+        license: "Propiedad de Fabricante",
+        impact: "Estableció el concepto de que el hardware de computación requiere una capa intermedia para administrar y encadenar tareas lógicas automatizadas sin intervención humana directa.",
+        x: 150, y: 350,
+        color: "#64748B", // Slate
+        connections: ["unix", "msdos"],
+        terminalPrompt: "BATCH-OS>",
+        terminalWelcome: "GM-NAA I/O MONITOR SYSTEM V1.0\nType 'RUN' to load tape programs or 'STATUS' for computer modules.",
+        terminalCommands: {
+          help: "Comandos disponibles: RUN, STATUS, ABOUT",
+          run: "Cargando tarjetas perforadas... Lote procesado con éxito en 0.04 ms.",
+          status: "IBM 704 Core Memory: OK (4096 palabras de 36-bits). Tubos de vacío estables.",
+          about: "Creado por General Motors en cooperación con North American Aviation para computación científica rápida."
+        }
+      },
+      {
+        id: "unix",
+        year: 1969,
+        name: "UNIX",
+        type: "server",
+        company: "Bell Labs (AT&T)",
+        desc: "El gigante arquitectónico sobre el que se apoya la computación moderna.",
+        details: "Creado por visionarios como Ken Thompson y Dennis Ritchie. Escrito en Lenguaje C, introdujo el sistema de archivos jerárquico, manejo de múltiples usuarios, multitarea y el concepto revolucionario: 'todo es un archivo'.",
+        arch: "Monolítico (C/Ensamblador)",
+        license: "Comercial / Académico",
+        impact: "Es el ancestro directo o conceptual del 95% de los sistemas operativos modernos. Definió el paradigma del desarrollo de software portátil y modular.",
+        x: 550, y: 150,
+        color: "#EF4444", // Red
+        connections: ["bsd", "linux", "macosx"],
+        terminalPrompt: "unix-v1$ ",
+        terminalWelcome: "UNIX Time-Sharing System (Bell Labs)\nLogin successful as ritchie.\nType 'ls' to explore or 'cat motd' to read.",
+        terminalCommands: {
+          help: "Comandos: ls, cat, whoami, clear",
+          ls: "bin/\nusr/\netc/\nmotd.txt\nken_source.c",
+          whoami: "ritchie (Dennis Ritchie)",
+          "cat motd.txt": "BIENVENIDO A BELL LABS UNIX\n'No somos diseñadores de interfaces. Diseñamos sistemas para pensar.'",
+          "cat ken_source.c": "/* Assembler bootstrap for PDP-7 */\nsys call exit;"
+        }
+      },
+      {
+        id: "bsd",
+        year: 1977,
+        name: "BSD Unix",
+        type: "server",
+        company: "U.C. Berkeley",
+        desc: "La ramificación académica que potenció el Internet moderno.",
+        details: "Berkeley Software Distribution trajo la suite TCP/IP (Internet) al ecosistema UNIX. Fue el primer pilar para la red abierta global y ha inspirado infinitos proyectos de seguridad.",
+        arch: "Monolítico",
+        license: "BSD (Abierta y Permisiva)",
+        impact: "Su arquitectura y pila de red TCP/IP se convirtieron en el estándar absoluto que Microsoft, Apple e ingenierías de redes adoptaron directamente para conectar el mundo.",
+        x: 950, y: 100,
+        color: "#F97316", // Orange
+        connections: ["macosx"],
+        terminalPrompt: "bsd-host# ",
+        terminalWelcome: "Berkeley Software Distribution 1.0\nType 'netstat' to check sockets or 'who' for terminals.",
+        terminalCommands: {
+          help: "Comandos: netstat, who, config",
+          netstat: "Active Internet Connections:\nProto Recv-Q Send-Q  Local Address          Foreign Address        (state)\ntcp        0      0  127.0.0.1:23           *.*                    LISTEN",
+          who: "root     ttyv0    May 25 11:49",
+          config: "Kernel compiled with experimental virtual memory pagination. Core active."
+        }
+      },
+      {
+        id: "msdos",
+        year: 1981,
+        name: "MS-DOS",
+        type: "desktop",
+        company: "Microsoft",
+        desc: "El sistema de comando de disco que impulsó la PC de IBM.",
+        details: "Adquirido como QDOS por Bill Gates y adaptado para IBM. Un sistema de línea de comandos monotarea que controló el mercado de las microcomputadoras durante más de una década.",
+        arch: "Monolítico / Monotarea",
+        license: "Propietaria",
+        impact: "Estableció a Microsoft como el estándar corporativo y de consumo, abriendo paso a la estandarización del hardware de computación personal x86.",
+        x: 950, y: 500,
+        color: "#06B6D4", // Cyan
+        connections: ["win1"],
+        terminalPrompt: "C:\\>",
+        terminalWelcome: "Microsoft(R) MS-DOS(R) Versión 5.00\n(C)Copyright Microsoft Corp 1981-1991.\nEscribe 'DIR' para ver archivos o 'VER' para versión.",
+        terminalCommands: {
+          help: "Comandos: DIR, VER, EDIT, CLS",
+          dir: " El volumen de la unidad C no tiene etiqueta.\n Directorio de C:\\\n\nCOMMAND  COM        47,845  04-09-91   5:00a\nAUTOEXEC BAT           115  05-25-26  11:49p\nCONFIG   SYS            84  05-25-26  11:49p\nQBASIC   EXE       194,309  04-09-91   5:00a",
+          ver: "MS-DOS Versión 5.00. Optimizado para IBM PC.",
+          "type autoexec.bat": "echo off\nprompt $P$G\nPATH C:\\DOS;C:\\WINDOWS\necho ¡Bienvenido a la revolución de la PC!"
+        }
+      },
+      {
+        id: "macos_classic",
+        year: 1984,
+        name: "System 1 (Classic)",
+        type: "desktop",
+        company: "Apple Computer",
+        desc: "La primera interfaz gráfica comercialmente exitosa.",
+        details: "Diseñado para la primera Macintosh de 128K. Eliminó la consola y la sustituyó por metáforas de un escritorio real: carpetas, basurero, menús desplegables y el uso obligatorio de un ratón.",
+        arch: "Capa Monolítica / GUI Integrada",
+        license: "Propietaria",
+        impact: "Definió para siempre el diseño de interacción humana con las computadoras. Convirtió la informática en un producto amigable para el hogar y los artistas.",
+        x: 1350, y: 350,
+        color: "#A855F7", // Purple
+        connections: ["macosx"],
+        terminalPrompt: "macintosh_os1% ",
+        terminalWelcome: "Macintosh System 1 Desktop Simulator.\nNo CLI exists in the real System 1, but you can type commands here!",
+        terminalCommands: {
+          help: "Comandos: desktop, disk_size, about",
+          desktop: "Íconos en Pantalla:\n[ Finder ]  [ WritePaint ]  [ Trash ]",
+          disk_size: "Disco flexible: 400KB cargado. 120KB libre.",
+          about: "Macintosh 128K - Diseñada en Cupertino. Con amor, Steve Jobs y el equipo original."
+        }
+      },
+      {
+        id: "win1",
+        year: 1985,
+        name: "Windows 1.0",
+        type: "desktop",
+        company: "Microsoft",
+        desc: "La primera interfaz de Microsoft sobre MS-DOS.",
+        details: "No era un sistema operativo independiente, sino una capa gráfica sobre MS-DOS. Introdujo ventanas de mosaico, calendario, calculadora y el legendario juego Reversi.",
+        arch: "Carcasa Gráfica (16-bit)",
+        license: "Propietaria",
+        impact: "Marcó la transición de Microsoft hacia los entornos visuales y el inicio de la batalla legal y comercial definitiva contra el ecosistema Apple.",
+        x: 1350, y: 500,
+        color: "#0EA5E9", // Sky
+        connections: ["win95"],
+        terminalPrompt: "WIN1.EXE>",
+        terminalWelcome: "MICROSOFT WINDOWS EXECUTIVE V1.01\nSimulador de Línea de Comandos de Ventanas.",
+        terminalCommands: {
+          help: "Comandos: run_reversi, show_apps, stats",
+          run_reversi: "Iniciando juego Reversi... un clásico del entretenimiento en 4 colores.",
+          show_apps: "Archivos Ejecutables Disponibles:\nCALC.EXE, NOTEPAD.EXE, CLOCK.EXE, PAINT.EXE",
+          stats: "Memoria direccionada: 640KB RAM convencional."
+        }
+      },
+      {
+        id: "linux",
+        year: 1991,
+        name: "Linux",
+        type: "server",
+        company: "Linus Torvalds",
+        desc: "El núcleo colaborativo y de código abierto definitivo.",
+        details: "Iniciado por un estudiante finlandés como pasatiempo para entender la CPU 80386. Al fusionarse con las herramientas del proyecto GNU de Richard Stallman, se convirtió en un sistema completo e imparable.",
+        arch: "Monolítico Dinámico",
+        license: "GPL (Código Abierto)",
+        impact: "Es la espina dorsal del Internet global, servidores de IA, el supercomputador más rápido del mundo y el núcleo detrás de Android. El mayor proyecto comunitario de la historia.",
+        x: 1750, y: 150,
+        color: "#22C55E", // Green
+        connections: ["android"],
+        terminalPrompt: "linus@kernel_sandbox:~$ ",
+        terminalWelcome: "Linux Kernel Version 0.01 / GNU Shell\nType 'uname -a' or 'ls' for file structures.",
+        terminalCommands: {
+          help: "Comandos: uname, ls, gcc, cat",
+          "uname -a": "Linux kernel_sandbox 0.01-386-pc #1 Mon Aug 25 11:49:00 UTC 2026 i386 GNU/Linux",
+          ls: "kernel/\ninclude/\nfs/\ninit_main.c\nreadme.txt",
+          gcc: "gcc: fatal error: no input files (Compilador GNU C listo)",
+          "cat readme.txt": "¡Hola a todos! Estoy haciendo un sistema operativo libre (solo un hobby, no será grande ni profesional como GNU)."
+        }
+      },
+      {
+        id: "win95",
+        year: 1995,
+        name: "Windows 95",
+        type: "desktop",
+        company: "Microsoft",
+        desc: "La consolidación definitiva de la computación masiva.",
+        details: "Unificó MS-DOS y Windows en un solo producto híbrido de 16/32-bits. Introdujo el Menú Inicio, la Barra de Tareas, el Escritorio Moderno, la arquitectura Plug and Play y el soporte multimedia DirectX.",
+        arch: "Híbrido 16/32 bits",
+        license: "Propietaria",
+        impact: "Condujo al uso masivo del internet doméstico gracias a la inclusión tardía de Internet Explorer e integró las computadoras en todos los hogares del planeta.",
+        x: 1750, y: 500,
+        color: "#3B82F6", // Blue
+        connections: ["winxp"],
+        terminalPrompt: "win95_c:\\>",
+        terminalWelcome: "Microsoft Windows 95 [Versión 4.00.950]\nTipo 'explorer' para simular entorno o 'win' para correr.",
+        terminalCommands: {
+          help: "Comandos: explorer, run_ie, win",
+          explorer: "Abriendo el Explorador de Windows... Menú Inicio cargado con éxito.",
+          run_ie: "Conectando al servidor Dial-up... Sonido de módem de 56kbps... ¡Internet Explorer 2.0 en marcha!",
+          win: "El sistema operativo ya se encuentra ejecutando la capa multitarea de 32-bits."
+        }
+      },
+      {
+        id: "macosx",
+        year: 2001,
+        name: "Mac OS X (Darwin)",
+        type: "desktop",
+        company: "Apple Computer",
+        desc: "El renacimiento de Apple con bases UNIX robustas.",
+        details: "Construido sobre Darwin (un derivado de BSD y NeXTSTEP de Steve Jobs). Fusionó la legendaria estética visual 'Aqua' con la estabilidad de nivel militar de un núcleo UNIX certificado.",
+        arch: "Híbrido (XNU - Mach + BSD)",
+        license: "Propietaria (Núcleo Abierto)",
+        impact: "Salvó a Apple de la quiebra y creó una base técnica híperestable de la cual nacieron posteriormente iOS, watchOS y tvOS.",
+        x: 2150, y: 350,
+        color: "#8B5CF6", // Violet
+        connections: ["ios"],
+        terminalPrompt: "macbook-pro:~ user$ ",
+        terminalWelcome: "Darwin Kernel Version 1.0.0 (based on Mach and BSD)\nType 'sw_vers' or 'mac_about' to test.",
+        terminalCommands: {
+          help: "Comandos: sw_vers, mac_about, clear",
+          sw_vers: "ProductName:\tMac OS X\nProductVersion:\t10.0 (Cheetah)",
+          mac_about: "Mac OS X 10.0 Cheetah. Interfaz Aqua activa. Transparencias PDF Quartz encendidas."
+        }
+      },
+      {
+        id: "winxp",
+        year: 2001,
+        name: "Windows XP",
+        type: "desktop",
+        company: "Microsoft",
+        desc: "La fusión perfecta de la estabilidad empresarial y doméstica.",
+        details: "Abandonó las débiles bases de MS-DOS uniendo la línea de consumo con el potente núcleo NT (Windows 2000). Lanzó la mítica interfaz azul 'Luna' y se convirtió en el OS más duradero.",
+        arch: "Windows NT (32/64 bits)",
+        license: "Propietaria",
+        impact: "Estableció una época dorada de compatibilidad de software global y juegos de PC, resistiendo como estándar por más de un decenio en millones de cajeros y oficinas.",
+        x: 2150, y: 500,
+        color: "#0284C7", // Sky blue
+        connections: ["win10"],
+        terminalPrompt: "xp_cmd:\\>",
+        terminalWelcome: "Microsoft Windows XP [Versión 5.1.2600]\n(C) Copyright 1985-2001 Microsoft Corp.",
+        terminalCommands: {
+          help: "Comandos: ipconfig, ping, luna_theme",
+          ipconfig: "Conexión de área local:\nDirección IPv4. . . . . . . . . . . . . : 192.168.1.104\nMáscara de subred . . . . . . . . . . . : 255.255.255.0",
+          ping: "Haciendo ping a google.com [142.250.78.46] con 32 bytes de datos:\nRespuesta desde 142.250.78.46: bytes=32 tiempo=12ms TTL=54",
+          luna_theme: "Estilo visual Luna cargado. Ventanas verdes y azules optimizadas."
+        }
+      },
+      {
+        id: "ios",
+        year: 2007,
+        name: "iOS",
+        type: "mobile",
+        company: "Apple Inc.",
+        desc: "El sistema que redefinió la era táctil.",
+        details: "Adaptó el núcleo Darwin de Mac OS X para dispositivos de bolsillo sin necesidad de un teclado físico. Introdujo Cocoa Touch, la App Store y un control capacitivo de pantalla ultrarrápido.",
+        arch: "XNU (Híbrido - ARM)",
+        license: "Propietaria",
+        impact: "Desencadenó la era móvil global, transformando la telefonía en computación computarizada portátil, forzando la muerte de sistemas antiguos como Symbian.",
+        x: 2550, y: 300,
+        color: "#EC4899", // Pink
+        connections: [],
+        terminalPrompt: "iphone-sh# ",
+        terminalWelcome: "iOS Cocoa Touch Terminal (Jailbroken Sandbox)\nType 'device_info' or 'battery' for hardware properties.",
+        terminalCommands: {
+          help: "Comandos: device_info, battery, sys_diagnose",
+          device_info: "Hardware: iPhone 2G (First Generation)\nProcessor: ARM11 412 MHz\nScreen: Multi-touch Capacitive 3.5 pulgadas",
+          battery: "Battery Capacity: 94% Health. Li-Ion chemistry safe.",
+          sys_diagnose: "CoreGraphics, CoreAudio and UIKit running at 60 FPS lock."
+        }
+      },
+      {
+        id: "android",
+        year: 2008,
+        name: "Android",
+        type: "mobile",
+        company: "Google / OHA",
+        desc: "La democratización abierta de la telefonía móvil.",
+        details: "Basado en una versión modificada del núcleo Linux. Utilizaba una máquina virtual (Dalvik, ahora ART) para ejecutar aplicaciones en Java/Kotlin. Desarrollado por el consorcio Open Handset Alliance liderado por Google.",
+        arch: "Linux Kernel modificado",
+        license: "Código Abierto / Apache & GPL",
+        impact: "Logró la dominancia absoluta en telefonía mundial con más del 70% de la cuota de mercado global, impulsando dispositivos de todas las gamas y marcas.",
+        x: 2550, y: 150,
+        color: "#10B981", // Emerald
+        connections: [],
+        terminalPrompt: "android_adb:/$ ",
+        terminalWelcome: "Android Debug Bridge (ADB) Shell\nConnected to device: Emulator-Pixel-AI\nType 'getprop' or 'logcat' to inspect system status.",
+        terminalCommands: {
+          help: "Comandos: getprop, logcat, am_start",
+          getprop: "[ro.build.version.release]: [14.0]\n[ro.product.brand]: [Google]\n[ro.product.cpu.abi]: [arm64-v8a]",
+          logcat: "I/ActivityManager: Displayed com.android.launcher3/.Launcher: +85ms\nD/ART: Garbage collection completed in 2.1ms\nI/Sensors: Accelerometer gyro event triggered",
+          am_start: "Starting intent: Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] }"
+        }
+      },
+      {
+        id: "win10",
+        year: 2015,
+        name: "Windows 10 / 11",
+        type: "desktop",
+        company: "Microsoft",
+        desc: "Sistemas como servicio integrados con la nube y la IA.",
+        details: "Windows 10 introdujo un núcleo unificado, la integración de Xbox, actualizaciones masivas como servicio e incorporó el subsistema de Linux (WSL). Windows 11 sumó mayor seguridad de hardware (TPM) y rediseño de UI.",
+        arch: "Windows NT 6.x / 10.x",
+        license: "Propietaria",
+        impact: "Mantiene la dominancia del escritorio informático corporativo e integró la ejecución nativa de aplicaciones Linux, fusionando dos ecosistemas tradicionalmente opuestos.",
+        x: 2950, y: 500,
+        color: "#3B82F6", // Blue
+        connections: ["ai_era"],
+        terminalPrompt: "PS C:\\Users\\Dev> ",
+        terminalWelcome: "Windows PowerShell v7.4\n(C) Microsoft Corporation. All rights reserved.\nType 'wsl' to launch Linux or 'copilot -ask' for assistant.",
+        terminalCommands: {
+          help: "Comandos: wsl, copilot -ask, sysinfo",
+          wsl: "Iniciando Ubuntu Linux en WSL2...\nWelcome to Ubuntu 22.04 LTS (GNU/Linux 5.15.0-microsoft-standard-WSL2)",
+          "copilot -ask": "Microsoft Copilot AI: ¡Hola! Soy tu copiloto. ¿En qué puedo ayudarte a programar o redactar hoy?",
+          sysinfo: "OS Name: Microsoft Windows 11 Pro\nOS Version: 10.0.22631 N/A Build 22631\nHardware: TPM 2.0 Enabled - SecureBoot ON"
+        }
+      },
+      {
+        id: "ai_era",
+        year: 2026,
+        name: "Sistemas de Era IA",
+        type: "server",
+        company: "Ecosistema Global",
+        desc: "La fusión del sistema operativo con modelos cognitivos autónomos.",
+        details: "Los sistemas operativos modernos de hoy en día (2026) han integrado microprocesamiento de modelos de lenguaje (LLM NPU) directo en el kernel. Los hilos de procesos ahora son asistidos y agendados inteligentemente por IA y orquestadores híbridos.",
+        arch: "Núcleos Híbridos impulsados por IA / NPU",
+        license: "Varias (Abiertas / Propietarias)",
+        impact: "Desplaza gradualmente las interfaces visuales tradicionales hacia flujos guiados por lenguaje natural, permitiendo una automatización autónoma completa de flujos de trabajo computacionales directos en memoria local.",
+        x: 3350, y: 350,
+        color: "#F59E0B", // Amber
+        connections: [],
+        terminalPrompt: "ai_os_cognitive_mesh# ",
+        terminalWelcome: "COGNITIVE SYSTEM MESH (OS AI-INTEGRAL)\nActive Local Model: DeepSeek-R1 / Gemini 1.5 Local\nAll logical threads optimized by neural scheduling.\nType 'prompt <query>' to communicate with kernel agent.",
+        terminalCommands: {
+          help: "Comandos: prompt, neural_load, optimize",
+          "prompt hola": "Agente Cognitivo Local: Procesando tu petición. He detectado que deseas interactuar con la línea de tiempo. Analizando tus preferencias de navegación en el lienzo...",
+          neural_load: "NPU Core Utilization: 12.4% (Quantum Tensor Unit optimal temperature: 38C)\nRunning background local agents: 3 active.",
+          optimize: "Optimizando almacenamiento y memoria. Eliminado caché ineficiente. Liberado 1.4 GB de RAM local asistida."
+        }
+      }
+    ];
+
+    // TRIVIA DE PREGUNTAS SOBRE OS
+    const triviaQuestions = [
+      {
+        q: "¿Cuál de estos personajes es el creador principal del núcleo Linux?",
+        options: ["Bill Gates", "Linus Torvalds", "Dennis Ritchie", "Steve Jobs"],
+        correct: 1,
+        explanation: "Linus Torvalds lanzó la versión inicial de Linux en 1991 como un pasatiempo de su universidad en Helsinki."
+      },
+      {
+        q: "¿Qué sistema operativo introdujo comercialmente de forma masiva el Menú Inicio y la barra de tareas en 1995?",
+        options: ["Windows XP", "Mac OS X", "Windows 95", "MS-DOS"],
+        correct: 2,
+        explanation: "Windows 95 trajo consigo la icónica barra de tareas y el Menú Inicio que hoy en día siguen siendo estándar en interfaces de escritorio."
+      },
+      {
+        q: "¿Sobre qué ecosistema robusto y estable está construido realmente macOS de Apple?",
+        options: ["MS-DOS", "UNIX / BSD", "AmigaOS", "Windows NT"],
+        correct: 1,
+        explanation: "macOS está construido bajo la arquitectura Darwin, la cual es un derivado directo de BSD UNIX, dándole gran estabilidad."
+      }
+    ];
+
+    // 2. ESTADOS DE LA APLICACIÓN
+    let zoom = 1.0;
+    let panX = 100;
+    let panY = 50;
+    let isDragging = false;
+    let startX, startY;
+    let selectedOs = null;
+    let currentFilteredType = "all";
+    let activeTriviaIndex = 0;
+
+    const canvas = document.getElementById("canvas");
+    const canvasContainer = document.getElementById("canvasContainer");
+    const svgConnections = document.getElementById("svgConnections");
+    const nodesContainer = document.getElementById("nodesContainer");
+    const zoomDisplay = document.getElementById("zoomDisplay");
+
+    // 3. INICIALIZAR LA APLICACIÓN
+    window.addEventListener("DOMContentLoaded", () => {
+      renderTimelineYears();
+      renderOsNodes();
+      drawConnections();
+      resetView();
+      setupCanvasDragAndZoom();
+      
+      // Inicializar iconos de Lucide
+      lucide.createIcons();
+
+      // Abrir por defecto el nodo de Unix
+      selectOs("unix");
+    });
+
+    // 4. RENDERIZAR ANTECEDENTES Y LÍNEAS DE TIEMPO DE AÑOS
+    function renderTimelineYears() {
+      const yearContainer = document.createElement("div");
+      yearContainer.className = "absolute bottom-16 left-0 right-0 h-10 flex justify-between px-32 pointer-events-none";
+      
+      const minYear = 1950;
+      const maxYear = 2030;
+      const step = 10;
+      
+      for(let y = minYear; y <= maxYear; y += step) {
+        const percent = ((y - minYear) / (maxYear - minYear)) * 100;
+        const line = document.createElement("div");
+        line.className = "absolute text-xs text-zinc-600 border-l border-zinc-800/80 pl-2 h-8 pt-1 font-mono flex flex-col justify-end";
+        // Convertir la posición matemática al lienzo
+        // Mapeo lineal para alinearse con los nodos
+        // 1956 es x=150, 2026 es x=3350. Distancia = 3200 px por 70 años. (~45px por año)
+        const posX = 150 + ((y - 1956) * 45.7);
+        line.style.left = `${posX}px`;
+        line.innerHTML = `<span class="font-bold text-zinc-500">${y}</span>`;
+        canvas.appendChild(line);
+      }
+    }
+
+    // 5. RENDERIZAR NODOS DE SISTEMAS OPERATIVOS EN EL LIENZO
+    function renderOsNodes() {
+      nodesContainer.innerHTML = "";
+      
+      osList.forEach(os => {
+        // Estilo de color dinámico
+        const ringColor = os.color;
+
+        const node = document.createElement("div");
+        node.id = `node-${os.id}`;
+        node.className = "absolute cursor-pointer p-4 rounded-2xl border bg-zinc-900/90 shadow-2xl transition-all hover:scale-105 select-none hover:shadow-indigo-500/10 z-10 w-64 flex flex-col gap-2.5 group";
+        node.style.left = `${os.x}px`;
+        node.style.top = `${os.y}px`;
+        node.style.borderColor = "rgba(63, 63, 70, 0.4)"; // Default border
+
+        node.setAttribute("onclick", `selectOs('${os.id}')`);
+
+        node.innerHTML = `
+          <div class="absolute -top-1.5 -left-1.5 w-full h-full pointer-events-none rounded-2xl border border-transparent group-hover:border-indigo-500/30 transition-all duration-300"></div>
+          
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-mono font-bold text-white px-2 py-0.5 rounded-full" style="background-color: ${ringColor}25; color: ${ringColor}">
+              ${os.year}
+            </span>
+            <span class="text-[9px] uppercase tracking-wider font-extrabold text-zinc-500 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${ringColor}"></span>
+              ${os.type === 'desktop' ? 'Escritorio' : os.type === 'mobile' ? 'Móvil' : 'Servidores'}
+            </span>
+          </div>
+          
+          <div>
+            <h3 class="font-bold text-white text-sm group-hover:text-indigo-400 transition-colors">${os.name}</h3>
+            <p class="text-[10px] text-zinc-400 font-medium">${os.company}</p>
+          </div>
+          
+          <p class="text-[11px] text-zinc-500 leading-snug line-clamp-2">${os.desc}</p>
+          
+          <div class="flex items-center justify-between pt-1 border-t border-zinc-800/60 mt-0.5">
+            <span class="text-[9px] text-zinc-500">Haz clic para interactuar</span>
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-zinc-500 group-hover:translate-x-0.5 transition-transform"></i>
+          </div>
+        `;
+
+        nodesContainer.appendChild(node);
+      });
+    }
+
+    // 6. DIBUJAR CONEXIONES DIRECTAS (Líneas de evolución de software)
+    function drawConnections() {
+      svgConnections.innerHTML = "";
+      
+      osList.forEach(parentOs => {
+        if (!parentOs.connections) return;
+        
+        parentOs.connections.forEach(childId => {
+          const childOs = osList.find(o => o.id === childId);
+          if (childOs) {
+            // Posición de los puertos de conexión
+            const startX = parentOs.x + 256; // Final de la tarjeta padre
+            const startY = parentOs.y + 60;  // Mitad vertical aproximada de la tarjeta
+            const endX = childOs.x;          // Inicio de la tarjeta hija
+            const endY = childOs.y + 60;
+
+            // Curva Bézier cúbica bonita para representar flujos de evolución de árbol
+            const controlPointX1 = startX + 100;
+            const controlPointX2 = endX - 100;
+
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", `M ${startX} ${startY} C ${controlPointX1} ${startY}, ${controlPointX2} ${endY}, ${endX} ${endY}`);
+            path.setAttribute("stroke", parentOs.color);
+            path.setAttribute("stroke-opacity", "0.22");
+            path.setAttribute("stroke-width", "2");
+            path.setAttribute("fill", "none");
+            path.setAttribute("class", "transition-all duration-300");
+            path.setAttribute("id", `path-${parentOs.id}-${childOs.id}`);
+
+            svgConnections.appendChild(path);
+          }
+        });
+      });
+    }
+
+    // 7. DRAG AND ZOOM (LÓGICA DEL LIENZO)
+    function setupCanvasDragAndZoom() {
+      // Iniciar Drag
+      canvasContainer.addEventListener("mousedown", (e) => {
+        if (e.target.closest('button') || e.target.closest('input') || e.target.closest('aside') || e.target.closest('#triviaModal')) return;
+        isDragging = true;
+        startX = e.clientX - panX;
+        startY = e.clientY - panY;
+      });
+
+      // Mover Lienzo
+      window.addEventListener("mousemove", (e) => {
+        if (!isDragging) return;
+        panX = e.clientX - startX;
+        panY = e.clientY - startY;
+        applyTransformations();
+      });
+
+      // Detener Drag
+      window.addEventListener("mouseup", () => {
+        isDragging = false;
+      });
+
+      // Zoom con Rueda
+      canvasContainer.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const zoomIntensity = 0.05;
+        const previousZoom = zoom;
+
+        // Limitar zoom entre 0.4 y 1.8
+        if (e.deltaY < 0) {
+          zoom = Math.min(1.8, zoom + zoomIntensity);
+        } else {
+          zoom = Math.max(0.4, zoom - zoomIntensity);
+        }
+
+        // Zoom centrado hacia el cursor del mouse
+        const mouseX = e.clientX - canvasContainer.offsetLeft;
+        const mouseY = e.clientY - canvasContainer.offsetTop;
+
+        panX = mouseX - (mouseX - panX) * (zoom / previousZoom);
+        panY = mouseY - (mouseY - panY) * (zoom / previousZoom);
+
+        applyTransformations();
+      });
+    }
+
+    // Aplicar transformación CSS (3D para mayor aceleración de tarjeta gráfica)
+    function applyTransformations() {
+      canvas.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${zoom})`;
+      zoomDisplay.innerText = `${Math.round(zoom * 100)}%`;
+    }
+
+    // Resetear posición de vista de inicio de flujo
+    function resetView() {
+      zoom = 0.95;
+      panX = 120;
+      panY = 100;
+      applyTransformations();
+    }
+
+    // Zoom manual con botones de UI
+    function adjustZoom(amount) {
+      const prevZoom = zoom;
+      zoom = Math.max(0.4, Math.min(1.8, zoom + amount));
+      
+      // Zoom desde el centro del visor
+      const centerX = canvasContainer.clientWidth / 2;
+      const centerY = canvasContainer.clientHeight / 2;
+      panX = centerX - (centerX - panX) * (zoom / prevZoom);
+      panY = centerY - (centerY - panY) * (zoom / prevZoom);
+
+      applyTransformations();
+    }
+
+    // 8. BUSCADOR
+    function handleSearch(query) {
+      if (!query.trim()) {
+        resetFilterStyles();
+        return;
+      }
+      
+      const q = query.toLowerCase();
+      let foundNode = null;
+
+      osList.forEach(os => {
+        const node = document.getElementById(`node-${os.id}`);
+        if (os.name.toLowerCase().includes(q) || os.company.toLowerCase().includes(q) || os.year.toString().includes(q)) {
+          node.style.opacity = "1";
+          node.style.transform = "scale(1.08)";
+          node.style.borderColor = "rgba(99, 102, 241, 0.7)";
+          if (!foundNode) foundNode = os;
+        } else {
+          node.style.opacity = "0.2";
+          node.style.transform = "scale(0.9)";
+          node.style.borderColor = "transparent";
+        }
+      });
+
+      // Si encuentra algún resultado, centrar el lienzo suavemente en él
+      if (foundNode) {
+        centerOnNode(foundNode);
+      }
+    }
+
+    // Centrar la cámara sobre un nodo específico
+    function centerOnNode(os) {
+      const containerWidth = canvasContainer.clientWidth;
+      const containerHeight = canvasContainer.clientHeight;
+      
+      // Cálculo para posicionar el nodo justo al centro de la pantalla
+      panX = (containerWidth / 2) - (os.x + 128) * zoom;
+      panY = (containerHeight / 2) - (os.y + 60) * zoom;
+      
+      applyTransformations();
+    }
+
+    // 9. SISTEMA DE FILTRADO POR CATEGORÍAS
+    function filterType(type) {
+      currentFilteredType = type;
+      
+      // Actualizar botones de UI
+      ["all", "desktop", "mobile", "server"].forEach(t => {
+        const btn = document.getElementById(`btn-${t}`);
+        if (t === type) {
+          btn.className = "px-2.5 py-1 rounded-md bg-indigo-600 text-white font-medium transition-all";
+        } else {
+          btn.className = "px-2.5 py-1 rounded-md text-zinc-400 hover:text-white transition-all";
+        }
+      });
+
+      // Cambiar visibilidad de tarjetas en lienzo
+      osList.forEach(os => {
+        const node = document.getElementById(`node-${os.id}`);
+        if (type === "all" || os.type === type) {
+          node.style.opacity = "1";
+          node.style.transform = "scale(1)";
+          node.style.pointerEvents = "auto";
+        } else {
+          node.style.opacity = "0.15";
+          node.style.transform = "scale(0.92)";
+          node.style.pointerEvents = "none";
+        }
+      });
+    }
+
+    // Limpiar filtros visuales de buscador
+    function resetFilterStyles() {
+      osList.forEach(os => {
+        const node = document.getElementById(`node-${os.id}`);
+        node.style.opacity = "1";
+        node.style.transform = "scale(1)";
+        node.style.borderColor = "rgba(63, 63, 70, 0.4)";
+        node.style.pointerEvents = "auto";
+      });
+    }
+
+    // 10. INTERACCIÓN Y DETALLE (ABRIR PANEL)
+    function selectOs(id) {
+      const os = osList.find(o => o.id === id);
+      if (!os) return;
+      
+      selectedOs = os;
+
+      // Resaltar visualmente el nodo seleccionado en el lienzo
+      osList.forEach(item => {
+        const node = document.getElementById(`node-${item.id}`);
+        if (item.id === os.id) {
+          node.style.borderColor = os.color;
+          node.style.boxShadow = `0 10px 30px -5px ${os.color}20`;
+        } else {
+          node.style.borderColor = "rgba(63, 63, 70, 0.4)";
+          node.style.boxShadow = "none";
+        }
+      });
+
+      // Centrar levemente al costado izquierdo para dar espacio al panel de detalles
+      const containerWidth = canvasContainer.clientWidth;
+      const containerHeight = canvasContainer.clientHeight;
+      const offset = window.innerWidth > 768 ? 100 : 0; // Ajustar por pantalla grande/pequeña
+      
+      panX = ((containerWidth - offset) / 2) - (os.x + 128) * zoom;
+      panY = (containerHeight / 2) - (os.y + 60) * zoom;
+      applyTransformations();
+
+      // Rellenar datos en el panel lateral
+      document.getElementById("panelOsYear").innerText = os.year;
+      document.getElementById("panelOsYear").style.color = os.color;
+      document.getElementById("panelOsYear").style.backgroundColor = `${os.color}15`;
+      document.getElementById("panelOsName").innerText = os.name;
+      document.getElementById("panelOsCompany").innerText = os.company;
+      document.getElementById("panelOsDesc").innerText = os.details;
+      document.getElementById("panelOsArch").innerText = os.arch;
+      document.getElementById("panelOsLicense").innerText = os.license;
+      document.getElementById("panelOsImpact").innerText = os.impact;
+      
+      // Icono de cabecera de panel
+      const panelIconContainer = document.getElementById("panelOsIconContainer");
+      panelIconContainer.style.color = os.color;
+      panelIconContainer.style.borderColor = `${os.color}30`;
+      panelIconContainer.style.backgroundColor = `${os.color}10`;
+
+      // Cambiar icono en función del tipo
+      const iconEl = document.getElementById("panelOsIcon");
+      iconEl.setAttribute("data-lucide", os.type === 'mobile' ? 'smartphone' : os.type === 'server' ? 'server' : 'monitor');
+      lucide.createIcons();
+
+      // Reiniciar terminal simulada con la bienvenida de este sistema operativo
+      initTerminalForSelectedOs();
+
+      // Abrir el panel deslizando
+      document.getElementById("sidePanel").style.transform = "translateX(0)";
+    }
+
+    function closePanel() {
+      document.getElementById("sidePanel").style.transform = "translateX(100%)";
+    }
+
+    // 11. SISTEMA DE EMULADOR / TERMINAL HISTÓRICA DE CONSOLA SIMULADA
+    const terminalScreen = document.getElementById("terminalScreen");
+    const terminalPrompt = document.getElementById("terminalPrompt");
+    const terminalInput = document.getElementById("terminalInput");
+    const terminalTitle = document.getElementById("terminalTitle");
+
+    function initTerminalForSelectedOs() {
+      if (!selectedOs) return;
+
+      terminalTitle.innerText = `sh @ ${selectedOs.id}-legacy`;
+      terminalPrompt.innerText = selectedOs.terminalPrompt || "$";
+      terminalPrompt.style.color = selectedOs.color;
+      
+      // Mensaje de bienvenida histórico
+      terminalScreen.innerHTML = `
+        <div class="text-zinc-500 text-[10px] italic border-b border-zinc-900 pb-1 mb-2">Simulación de Consola interactiva para ${selectedOs.name}</div>
+        <div class="whitespace-pre-line text-zinc-300">${selectedOs.terminalWelcome}</div>
+      `;
+      terminalInput.value = "";
+    }
+
+    function handleTerminalSubmit(event) {
+      event.preventDefault();
+      const commandText = terminalInput.value.trim();
+      if (!commandText) return;
+
+      const lowerCmd = commandText.toLowerCase();
+
+      // Guardar input escrito en la pantalla de terminal
+      const userLine = document.createElement("div");
+      userLine.className = "flex items-start gap-1 mt-2";
+      userLine.innerHTML = `
+        <span class="font-bold code-font text-xs" style="color: ${selectedOs.color}">${selectedOs.terminalPrompt}</span>
+        <span class="code-font text-xs text-white">${commandText}</span>
+      `;
+      terminalScreen.appendChild(userLine);
+
+      // Respuesta lógica
+      const responseLine = document.createElement("div");
+      responseLine.className = "code-font text-xs pl-2 border-l-2 py-0.5 whitespace-pre-line";
+      responseLine.style.borderColor = selectedOs.color;
+
+      if (lowerCmd === "clear" || lowerCmd === "cls") {
+        terminalScreen.innerHTML = "";
+        terminalInput.value = "";
+        return;
+      }
+
+      if (selectedOs.terminalCommands && selectedOs.terminalCommands[lowerCmd]) {
+        responseLine.innerText = selectedOs.terminalCommands[lowerCmd];
+        responseLine.className += " text-indigo-300";
+      } else if (lowerCmd === "help") {
+        responseLine.innerText = "Comandos disponibles básicos: help, clear, " + Object.keys(selectedOs.terminalCommands).join(", ");
+        responseLine.className += " text-zinc-400";
+      } else if (lowerCmd === "info") {
+        responseLine.innerText = `[${selectedOs.name}] Lanzado por ${selectedOs.company} en ${selectedOs.year}. Categorizado como sistema ${selectedOs.type}.`;
+        responseLine.className += " text-zinc-400";
+      } else {
+        responseLine.innerText = `Comando no reconocido en la capa de simulación de ${selectedOs.name}.\nEscribe 'help' para comandos soportados.`;
+        responseLine.className += " text-red-400/90";
+      }
+
+      terminalScreen.appendChild(responseLine);
+      terminalInput.value = "";
+      
+      // Auto-scrollear terminal al fondo
+      setTimeout(() => {
+        terminalScreen.scrollTop = terminalScreen.scrollHeight;
+      }, 50);
+    }
+
+    // 12. DESAFÍO / MODAL DE TRIVIA HISTÓRICA
+    function openTrivia() {
+      activeTriviaIndex = 0;
+      document.getElementById("triviaModal").classList.remove("hidden");
+      loadTriviaQuestion();
+    }
+
+    function closeTrivia() {
+      document.getElementById("triviaModal").classList.add("hidden");
+    }
+
+    function loadTriviaQuestion() {
+      const questionData = triviaQuestions[activeTriviaIndex];
+      
+      document.getElementById("triviaProgress").innerText = `Pregunta ${activeTriviaIndex + 1} de ${triviaQuestions.length}`;
+      document.getElementById("triviaQuestion").innerText = questionData.q;
+      
+      const answersContainer = document.getElementById("triviaAnswers");
+      answersContainer.innerHTML = "";
+
+      document.getElementById("triviaQuestionContainer").classList.remove("hidden");
+      document.getElementById("triviaFeedback").classList.add("hidden");
+
+      questionData.options.forEach((opt, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "w-full text-left p-3.5 bg-zinc-800/80 hover:bg-zinc-700/80 border border-zinc-700/50 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white transition-all duration-200 hover:border-indigo-500/50 flex items-center gap-3";
+        btn.innerHTML = `
+          <span class="w-5 h-5 bg-zinc-700 text-zinc-300 text-[10px] font-mono font-bold rounded-lg flex items-center justify-center">${String.fromCharCode(65 + idx)}</span>
+          ${opt}
+        `;
+        btn.setAttribute("onclick", `evaluateAnswer(${idx})`);
+        answersContainer.appendChild(btn);
+      });
+    }
+
+    function evaluateAnswer(idx) {
+      const questionData = triviaQuestions[activeTriviaIndex];
+      const isCorrect = idx === questionData.correct;
+
+      document.getElementById("triviaQuestionContainer").classList.add("hidden");
+      const feedbackSection = document.getElementById("triviaFeedback");
+      feedbackSection.classList.remove("hidden");
+
+      const iconBox = document.getElementById("triviaFeedbackIcon");
+      const title = document.getElementById("triviaFeedbackTitle");
+      const text = document.getElementById("triviaFeedbackText");
+      const nextBtn = document.getElementById("triviaNextBtn");
+
+      if (isCorrect) {
+        iconBox.innerHTML = `<i data-lucide="check-circle" class="w-6 h-6"></i>`;
+        iconBox.className = "mx-auto w-12 h-12 bg-green-500/10 text-green-400 border border-green-500/20 rounded-full flex items-center justify-center";
+        title.innerText = "¡Correcto! Qué gran conocimiento.";
+        title.className = "text-base font-bold text-green-400";
+      } else {
+        iconBox.innerHTML = `<i data-lucide="alert-circle" class="w-6 h-6"></i>`;
+        iconBox.className = "mx-auto w-12 h-12 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full flex items-center justify-center";
+        title.innerText = "Respuesta Incorrecta";
+        title.className = "text-base font-bold text-red-400";
+      }
+
+      text.innerText = questionData.explanation;
+
+      if (activeTriviaIndex < triviaQuestions.length - 1) {
+        nextBtn.innerText = "Siguiente Pregunta";
+      } else {
+        nextBtn.innerText = "Finalizar y Volver al Lienzo";
+      }
+
+      lucide.createIcons();
+    }
+
+    function nextTriviaQuestion() {
+      if (activeTriviaIndex < triviaQuestions.length - 1) {
+        activeTriviaIndex++;
+        loadTriviaQuestion();
+      } else {
+        closeTrivia();
+      }
+    }
+  </script>
+</body>
+</html>
